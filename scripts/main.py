@@ -22,15 +22,24 @@ pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
 ve_sugar = VeSugar.at(data['ve_sugar'])
 target = data['target']
 
-# Fetch target token's balances in user's LP positions
 def get_lp_balance(address, blk=None):
+    """
+    Fetch the target token's balances in the user's LP positions.
+
+    Args:
+        address (str): The user's Ethereum address.
+        blk (int, optional): The block number to fetch the data from. Defaults to None.
+
+    Returns:
+        int: The total balance of the target token in the user's LP positions.
+    """
     global pools
     t = time.time()
     balance = 0
     results = pool_lp_sugar.positions(pools.index.tolist(), pools['is_cl'].tolist(), address, block_identifier=blk)
 
     for result in results:
-        (id,lp,amount0, amount1, staked0, staked1, unstaked_earned0, unstaked_earned1) = result
+        (id, lp, amount0, amount1, staked0, staked1, unstaked_earned0, unstaked_earned1) = result
         match = pools[pools.index == lp]
         if match.shape[0]:
             if match['token_pos'][0] == 0:
@@ -40,8 +49,17 @@ def get_lp_balance(address, blk=None):
     print('LP bal run time', time.time() - t)
     return balance
 
-# Fetch target token's balances in a given veNFT's unclaimed rewards
 def fetch_nft_rewards(id, blk=None):
+    """
+    Fetch the target token's balances in a given veNFT's unclaimed rewards.
+
+    Args:
+        id (int): The ID of the veNFT.
+        blk (int, optional): The block number to fetch the data from. Defaults to None.
+
+    Returns:
+        int: The total amount of the target token in the veNFT's unclaimed rewards.
+    """
     total_amount = 0
     try:
         rewards = lp_sugar.rewards(4000, 0, id, block_identifier=blk)
@@ -54,8 +72,17 @@ def fetch_nft_rewards(id, blk=None):
             total_amount += amt
     return total_amount
 
-# Fetch target token's balances in user's unclaimed rewards
 def get_unclaimed_voting_rewards(address, blk=None):
+    """
+    Fetch the target token's balances in the user's unclaimed rewards.
+
+    Args:
+        address (str): The user's address.
+        blk (int, optional): The block number to fetch the data from. Defaults to None/latest block.
+
+    Returns:
+        int: The total amount of the target token in the user's unclaimed rewards.
+    """
     t = time.time()
     amount = 0
     # First fetch all the venft ids held by the user 
@@ -71,21 +98,35 @@ def get_unclaimed_voting_rewards(address, blk=None):
     return amount
 
 def _get_balance(address, blk):
+    """
+    Fetch the total balance of the target token in the user's LP positions and unclaimed rewards.
+
+    Args:
+        address (str): The user's Ethereum address.
+        blk (int, optional): The block number to fetch the data from. Defaults to None/latest block.
+
+    Returns:
+        int: The total balance of the target token.
+    """
     t = time.time()
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(get_lp_balance, address, blk), executor.submit(get_unclaimed_voting_rewards, address, blk)]
         results = [future.result() for future in futures]
-    print(results[0]/1e18, results[1]/1e18)
+    print(results[0] / 1e18, results[1] / 1e18)
     print('Total run time', time.time() - t)
     return sum(results)
 
-
-# Fetch pool data every 1 hour
 def fetch_pools():
+    """
+    Fetch the pool data and update the global `pools` variable.
+    """
     global pools
     pools = fetch(lp_sugar, target)
 
 def run_scheduler():
+    """
+    Run the scheduler to execute scheduled tasks.
+    """
     while True:
         schedule.run_pending()
         time.sleep(1)
@@ -96,16 +137,32 @@ scheduler_thread.daemon = True
 scheduler_thread.start()
 fetch_pools()
 
-
 # Flask API logics
 def is_valid_eth_address(address):
-    """ Simple check to validate Ethereum addresses """
+    """
+    Validate Ethereum addresses.
+
+    Args:
+        address (str): The Ethereum address to validate.
+
+    Returns:
+        bool: True if the address is valid, False otherwise.
+    """
     if address.startswith('0x') and len(address) == 42:
         return True
     return False
 
 @app.route('/getBalance', methods=['GET'])
 def get_balance():
+    """
+    Handle GET requests to the /getBalance endpoint.
+
+    Args:
+        None
+
+    Returns:
+        Response: JSON response containing the address and its balance or an error message.
+    """
     eth_address = request.args.get('address', None)
     blk = request.args.get('block', None)
     blk = int(blk) if blk is not None else None
@@ -118,6 +175,7 @@ def get_balance():
         "balance": _get_balance(eth_address, blk)
     }
     return jsonify(response_data), 200
+
 
 app.run(debug=True)
 

@@ -4,6 +4,19 @@ LIMIT = 500
 
 # Fetch all pools for a given token
 def fetch(sugar, target):
+    """
+    Fetch all pools for a given token and return the data as a pandas DataFrame.
+
+    Args:
+        sugar (object): The LpSugar contract instance.
+        target (str): The target token's address.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the pool information where the target token is present.
+                      The DataFrame has columns ['pool', 'token_pos', 'is_cl'] and is indexed by 'pool'.
+                      'token_pos' indicates the position of the token in the pool (0 or 1).
+                      'is_cl' indicates if the pool is a concentrated liquidity pool (1) or not (0).
+    """
     df = pd.DataFrame()
     columns = ['pool', 'token_pos', 'is_cl']
     df = pd.DataFrame(columns=columns)

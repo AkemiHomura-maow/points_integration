@@ -1,4 +1,4 @@
-from brownie import LpSugar, VeSugar, PoolLpSugar, chain
+from brownie import LpSugar, VotingRewardsHelper, PoolLpSugar, chain
 from scripts.get_pair_info import fetch
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
@@ -19,7 +19,7 @@ else:
 
 lp_sugar = LpSugar.at(data['lp_sugar'])
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
-ve_sugar = VeSugar.at(data['ve_sugar'])
+ve_rewards_helper = VotingRewardsHelper.at(data['ve_rewards_helper'])
 target = data['target']
 
 def get_lp_balance(address, blk=None):
@@ -49,28 +49,6 @@ def get_lp_balance(address, blk=None):
     print('LP bal run time', time.time() - t)
     return balance
 
-def fetch_nft_rewards(id, blk=None):
-    """
-    Fetch the target token's balances in a given veNFT's unclaimed rewards.
-
-    Args:
-        id (int): The ID of the veNFT.
-        blk (int, optional): The block number to fetch the data from. Defaults to None.
-
-    Returns:
-        int: The total amount of the target token in the veNFT's unclaimed rewards.
-    """
-    total_amount = 0
-    try:
-        rewards = lp_sugar.rewards(4000, 0, id, block_identifier=blk)
-    except:
-        print(id)
-        breakpoint()
-    for reward in rewards:
-        amt, token = reward[2], reward[3]
-        if token == target:
-            total_amount += amt
-    return total_amount
 
 def get_unclaimed_voting_rewards(address, blk=None):
     """
@@ -84,16 +62,13 @@ def get_unclaimed_voting_rewards(address, blk=None):
         int: The total amount of the target token in the user's unclaimed rewards.
     """
     t = time.time()
-    amount = 0
-    # First fetch all the venft ids held by the user 
-    results = ve_sugar.byAccount(address, block_identifier=blk)
-    nft_ids = [res[0] for res in results]
-
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        # Then query unclaimed rewards for each nft
-        futures = {executor.submit(fetch_nft_rewards, id, blk): id for id in nft_ids}
-        for future in as_completed(futures):
-            amount += future.result()
+    amount, exhausted = ve_rewards_helper.fetch(address,  ## User address
+                                                target,   ## Target token
+                                                0,        ## From nft_id
+                                                100,      ## To nft_id (included)
+                                                ## Fetch target token rewards from fee rewards contract & bribe rewards contract
+                                                pools['fee_voting_reward'].tolist() + pools['bribe_voting_reward'].tolist(), 
+                                                block_identifier=blk)
     print('veNFT Rewards bal run time', time.time() - t)
     return amount
 
@@ -122,6 +97,7 @@ def fetch_pools():
     """
     global pools
     pools = fetch(lp_sugar, target)
+    pools = pools[pools['fee_voting_reward'] != '0x0000000000000000000000000000000000000000']
 
 def run_scheduler():
     """
@@ -176,6 +152,21 @@ def get_balance():
     }
     return jsonify(response_data), 200
 
+@app.route('/getPools', methods=['GET'])
+def get_pools():
+    """
+    Handle GET requests to the /getPools endpoint.
+
+    This endpoint retrieves information about pools, fee voting rewards and bribe voting reward contracts for the target token.
+
+    Returns:
+        Response: JSON response containing pools and their corresponding fee voting rewards and bribe voting reward contracts.
+    """
+    global pools
+    out = pools[['fee_voting_reward', 'bribe_voting_reward']]
+    response_data = json.loads(out.to_json(orient='table'))['data']
+
+    return jsonify(response_data), 200
 
 app.run(debug=True)
 

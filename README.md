@@ -79,7 +79,7 @@ Fetch the balance of the target token in a user's LP positions and unclaimed rew
     ```
 
 #### `GET /getPools`
-Fetch information about pools and each corresponding fee voting rewards and bribe voting reward contract.
+Fetch information about pools including the target token, and each corresponding fee voting rewards and bribe voting reward contract.
 
 - **Parameters:**
     - None

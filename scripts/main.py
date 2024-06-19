@@ -5,14 +5,19 @@ import json
 import time
 import threading
 import schedule
+import requests
 from flask import Flask, request, jsonify
+from json import dumps
 
 app = Flask(__name__)
 
 data = json.load(open('./config.json'))
 pools = None
+chainbase_key = data['chainbase_key']
 
-if chain.id == 10:
+chain_id = chain.id
+
+if chain_id == 10:
     data = data['op'] 
 else:
     data = data['base']
@@ -21,6 +26,9 @@ lp_sugar = LpSugar.at(data['lp_sugar'])
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
 ve_rewards_helper = VotingRewardsHelper.at(data['ve_rewards_helper'])
 target = data['target']
+v2_router = data['v2_router']
+cl_router = data['cl_router']
+first_block = data['first_block']
 
 def get_lp_balance(address, blk=None):
     """
@@ -166,6 +174,41 @@ def get_pools():
     out = pools[['fee_voting_reward', 'bribe_voting_reward']]
     response_data = json.loads(out.to_json(orient='table'))['data']
 
+    return jsonify(response_data), 200
+
+@app.route('/getUsers', methods=['GET'])
+def get_users():
+    """
+    Handle GET requests to the /getUsers endpoint.
+
+    Args:
+        None, optional block
+
+    Returns:
+        Response: JSON response containing the users that have deposited into pools containing the target token.
+    """
+
+    blk = request.args.get('block', None)
+    blk = int(blk) if blk is not None else None
+
+    if chain_id == 10:
+        query = "select distinct from_address from optimism.transactions where block_number > " + str(first_block) + " and ((input like '0x5a47ddc3%') or (input like '0xb5007d1f%') or (input like '0xb7e0d4c0%')) and ((to_address like '%" + v2_router[2:].lower() + "%') or (to_address like '%" + cl_router[2:].lower() + "%')) and (input like '%" + target[2:].lower() + "%')"
+    else:
+        query = "select distinct from_address from base.transactions where block_number > " + str(first_block) + " and ((input like '0x5a47ddc3%') or (input like '0xb5007d1f%') or (input like '0xb7e0d4c0%')) and ((to_address like '%" + v2_router[2:].lower() + "%') or (to_address like '%" + cl_router[2:].lower() + "%')) and (input like '%" + target[2:].lower() + "%')"
+    
+    if blk is not None:
+        query += " and (block_number < " + str(blk) + ")"
+
+    headers = {"accept": "application/json", "x-api-key": chainbase_key, "content-type": "application/json"}
+
+    response = requests.post("https://api.chainbase.online/v1/dw/query", headers=headers, data=dumps({"query": query}))
+    response = response.json()
+
+    users = response['data']['result']
+
+    response_data = {
+        "users": users,
+    }
     return jsonify(response_data), 200
 
 app.run(debug=True)

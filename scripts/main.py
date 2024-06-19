@@ -75,7 +75,7 @@ def get_unclaimed_voting_rewards(address, blk=None):
                                                 0,        ## From nft_id
                                                 100,      ## To nft_id (included)
                                                 ## Fetch target token rewards from fee rewards contract & bribe rewards contract
-                                                pools['fee_voting_reward'].tolist() + pools['bribe_voting_reward'].tolist(), 
+                                                [contract for contract in pools['fee_voting_reward'].tolist() + pools['bribe_voting_reward'].tolist() if contract != '0x0000000000000000000000000000000000000000'], 
                                                 block_identifier=blk)
     print('veNFT Rewards bal run time', time.time() - t)
     return amount
@@ -105,7 +105,7 @@ def fetch_pools():
     """
     global pools
     pools = fetch(lp_sugar, target)
-    pools = pools[pools['fee_voting_reward'] != '0x0000000000000000000000000000000000000000']
+    # pools = pools[pools['fee_voting_reward'] != '0x0000000000000000000000000000000000000000']
 
 def run_scheduler():
     """

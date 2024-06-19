@@ -15,7 +15,9 @@ data = json.load(open('./config.json'))
 pools = None
 chainbase_key = data['chainbase_key']
 
-if chain.id == 10:
+chain_id = chain.id
+
+if chain_id == 10:
     data = data['op'] 
 else:
     data = data['base']
@@ -189,7 +191,7 @@ def get_users():
     blk = request.args.get('block', None)
     blk = int(blk) if blk is not None else None
 
-    if chain.id == 10:
+    if chain_id == 10:
         query = "select distinct from_address from optimism.transactions where block_number > " + str(first_block) + " and ((input like '0x5a47ddc3%') or (input like '0xb5007d1f%') or (input like '0xb7e0d4c0%')) and ((to_address like '%" + v2_router[2:].lower() + "%') or (to_address like '%" + cl_router[2:].lower() + "%')) and (input like '%" + target[2:].lower() + "%')"
     else:
         query = "select distinct from_address from base.transactions where block_number > " + str(first_block) + " and ((input like '0x5a47ddc3%') or (input like '0xb5007d1f%') or (input like '0xb7e0d4c0%')) and ((to_address like '%" + v2_router[2:].lower() + "%') or (to_address like '%" + cl_router[2:].lower() + "%')) and (input like '%" + target[2:].lower() + "%')"

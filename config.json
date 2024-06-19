@@ -1,7 +1,7 @@
 {
     "op":{
         "lp_sugar": "0x1381B1E6aaFa01bD28e95AdaB35bdA8191826bC8",
-        "pool_lp_sugar": "0x55131F5215CC96f6784406d65aD0AC9598913D37",
+        "pool_lp_sugar": "0x248F8EFb59cdDF7d94816a891a14A2ac6C1e05AB",
         "ve_rewards_helper": "0x6fF159996Ec4237a9480E1B40857fa0c0F99C80c",
         "target": "0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db",
         "v2_router": "0xa062ae8a9c5e11aaa026fc2670b0d65ccc8b2858",
@@ -10,7 +10,7 @@
     },
     "base":{
         "lp_sugar": "0xdE1682E50b4AeE52347fdfF1ef37Ec157DE25d7A",
-        "pool_lp_sugar": "0xa3FE539901fe9836d4D32c88ef669ba1B28E3804",
+        "pool_lp_sugar": "0x2c16eA5CF27542afC23dDcD4F54815F406d33209",
         "ve_rewards_helper": "0x90D0368b5E96812568065bfebb43457282877743",
         "target": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
         "v2_router": "0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43",

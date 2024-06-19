@@ -204,7 +204,13 @@ def get_users():
     response = requests.post("https://api.chainbase.online/v1/dw/query", headers=headers, data=dumps({"query": query}))
     response = response.json()
 
-    users = response['data']['result']
+    user_data = response['data']['result']
+    users = []
+
+    for entry in user_data:
+        if type(entry) == dict:
+            if 'from_address' in entry:
+                users.append(entry)
 
     response_data = {
         "users": users,

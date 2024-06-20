@@ -21,6 +21,7 @@ if chain_id == 10:
     data = data['op'] 
 else:
     data = data['base']
+    from scripts.get_base_etherfi_old_balance import get_old_balance
 
 lp_sugar = LpSugar.at(data['lp_sugar'])
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
@@ -154,9 +155,16 @@ def get_balance():
     if not eth_address or not is_valid_eth_address(eth_address):
         return jsonify({"error": "Invalid or missing address"}), 400
 
+    if (chain_id == 10 and blk > 121593546) or (chain_id != 10 and blk > 15998298):
+        balance = _get_balance(eth_address, blk)
+    elif chain_id != 10 and target.lower() == '0x04c0599ae5a44757c0af6f9ec3b93da8976c150a'.lower():
+        balance = get_old_balance(eth_address, blk)
+    else:
+        balance = 0 
+
     response_data = {
         "address": eth_address,
-        "balance": _get_balance(eth_address, blk)
+        "balance": balance
     }
     return jsonify(response_data), 200
 

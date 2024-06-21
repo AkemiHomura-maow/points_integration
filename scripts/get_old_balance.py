@@ -1,10 +1,16 @@
-from brownie import interface
+from brownie import interface,chain
 import concurrent.futures
 
-pools = ['0x91f0f34916ca4e2cce120116774b0e4fa0cdcaa8', '0xc5adfb267a95df1233a2b5f7f48041e7fb384bca']
-gauges = ['0xf8d47b641ed9df1c924c0f7a6deeea2803b9cfef', '0x0a5f63a1ac754b4418cc5381ee17e04ccad42f56']
-pool_created_blk = [13614008, 14085276]
-gauge_created_blk = [13655779, 14085500]
+if chain.id != 10:
+    pools = ['0x91f0f34916ca4e2cce120116774b0e4fa0cdcaa8', '0xc5adfb267a95df1233a2b5f7f48041e7fb384bca']
+    gauges = ['0xf8d47b641ed9df1c924c0f7a6deeea2803b9cfef', '0x0a5f63a1ac754b4418cc5381ee17e04ccad42f56']
+    pool_created_blk = [13614008, 14085276]
+    gauge_created_blk = [13655779, 14085500]
+else:
+    pools = ['0xe48b4e392e4fc29ac2600c3c8efe0404a15d60d9']
+    gauges = ['0x0b5f85ed904a06efdb893510cca20481a5de4965']
+    pool_created_blk = [118841301]
+    gauge_created_blk = [119165909]
 
 pools = [interface.IPool(pool) for pool in pools]
 gauges = [interface.IGauge(gauge) for gauge in gauges]
@@ -55,5 +61,5 @@ def get_old_balance(user, blk):
                 balance = (unstaked + staked) / total_supply * reserve0
                 total_balance += balance
     
-    return total_balance
+    return int(total_balance)
 

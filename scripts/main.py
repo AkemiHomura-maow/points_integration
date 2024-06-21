@@ -8,6 +8,7 @@ import schedule
 import requests
 from flask import Flask, request, jsonify
 from json import dumps
+from scripts.get_old_balance import get_old_balance
 
 app = Flask(__name__)
 
@@ -21,7 +22,7 @@ if chain_id == 10:
     data = data['op'] 
 else:
     data = data['base']
-    from scripts.get_base_etherfi_old_balance import get_old_balance
+    
 
 lp_sugar = LpSugar.at(data['lp_sugar'])
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
@@ -158,6 +159,8 @@ def get_balance():
     if (chain_id == 10 and blk > 121593546) or (chain_id != 10 and blk > 15998298):
         balance = _get_balance(eth_address, blk)
     elif chain_id != 10 and target.lower() == '0x04c0599ae5a44757c0af6f9ec3b93da8976c150a'.lower():
+        balance = get_old_balance(eth_address, blk)
+    elif chain_id == 10 and target.lower() == '0x87eee96d50fb761ad85b1c982d28a042169d61b1'.lower():
         balance = get_old_balance(eth_address, blk)
     else:
         balance = 0 

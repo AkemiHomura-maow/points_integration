@@ -65,24 +65,30 @@ brownie run scripts/main.py --network={NETWORK_NAME}
 
 ### API Endpoints
 
-#### `GET /getBalance`
-Fetch the balance of the target token in a user's LP positions and unclaimed rewards.
+#### `GET /getBalances`
+Retrieves the balances of specified users at a given blockchain height. If no block is specified, it defaults to the current blockchain height. If no users are provided, it fetches balances for all users.
 
 - **Parameters:**
-    - `address` (required): The Ethereum address of the user.
+    - `users` (optional): A comma-separated list of user addresses. If not provided, retrieves balances for all users.
     - `block` (optional): The block number to fetch the data from.
 
 - **Example Request:**
     ```http
-    GET /getBalance?address=0xYourEthereumAddress
+    GET /getBalances?block=123&users=user1_address,user2_address
     ```
 
 - **Response:**
     ```json
+    [
     {
-        "address": "0xUserAddress",
-        "balance": 1234567890
+        "address": "user1_address",
+        "effective_balance": 2.5
+    },
+    {
+        "address": "user2_address",
+        "effective_balance": 1.8
     }
+    ]
     ```
 
 #### `GET /getPools`

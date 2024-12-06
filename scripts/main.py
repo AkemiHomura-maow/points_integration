@@ -1,30 +1,30 @@
-from brownie import LpSugar, VotingRewardsHelper, PoolLpSugar, chain
+from brownie import LpSugar, VotingRewardsHelper, PoolLpSugar, chain, interface
 from scripts.get_pair_info import fetch
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 import json
 import time
 import threading
 import schedule
-import requests
 from flask import Flask, request, jsonify
-from json import dumps
 from scripts.get_old_balance import get_old_balance
+import scripts.user as usr
 
 app = Flask(__name__)
 
 data = json.load(open('./config.json'))
 pools = None
-chainbase_key = data['chainbase_key']
 
 chain_id = chain.id
 
 if chain_id == 10:
     data = data['op'] 
+    lp_sugar = LpSugar.at(data['lp_sugar'])
 else:
     data = data['base']
+    lp_sugar = LpSugar.at('0x066D31221152f1f483DA474d1Ce47a4F50433e22')
+    new_sugar = LpSugar.at(data['lp_sugar'])
+    multicall = interface.IMulticall3('0xcA11bde05977b3631167028862bE2a173976CA11')
     
-
-lp_sugar = LpSugar.at(data['lp_sugar'])
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
 ve_rewards_helper = VotingRewardsHelper.at(data['ve_rewards_helper'])
 target = data['target']
@@ -32,81 +32,97 @@ v2_router = data['v2_router']
 cl_router = data['cl_router']
 first_block = data['first_block']
 
-def get_lp_balance(address, blk=None):
+def get_lp_balances(addresses, blk=None):
     """
     Fetch the target token's balances in the user's LP positions.
 
     Args:
-        address (str): The user's Ethereum address.
+        addresses ([str]): LPs' addresses
         blk (int, optional): The block number to fetch the data from. Defaults to None.
 
     Returns:
-        int: The total balance of the target token in the user's LP positions.
+        [int]: The total balance of the target token in the user's LP positions.
     """
     global pools
     t = time.time()
     balance = 0
-    results = pool_lp_sugar.positions(pools.index.tolist(), pools['is_cl'].tolist(), address, block_identifier=blk)
+    
+    input_args = []
 
+    for address in addresses:
+        input_args.append([pool_lp_sugar.address, pool_lp_sugar.positions.encode_input(pools.index.tolist(), pools['is_cl'].tolist(), address)])
+
+    raw_results = multicall.aggregate.call(input_args, block_identifier=blk)[1]
+    results = [pool_lp_sugar.positions.decode_output(res) for res in raw_results]
+
+    out_balances = []
     for result in results:
-        (id, lp, amount0, amount1, staked0, staked1, unstaked_earned0, unstaked_earned1) = result
-        match = pools[pools.index == lp]
-        if match.shape[0]:
-            if match['token_pos'][0] == 0:
-                balance += amount0 + staked0 + unstaked_earned0
-            else:
-                balance += amount1 + staked1 + unstaked_earned1
-    print('LP bal run time', time.time() - t)
-    return balance
+        balance = 0
+        for res in result:
+            (id, lp, amount0, amount1, staked0, staked1, unstaked_earned0, unstaked_earned1) = res
+            match = pools[pools.index == lp]
+            if match.shape[0]:
+                if match['token_pos'][0] == 0:
+                    balance += amount0 + staked0 + unstaked_earned0
+                else:
+                    balance += amount1 + staked1 + unstaked_earned1
+        out_balances.append(balance)
+    return out_balances
 
 
-def get_unclaimed_voting_rewards(address, blk=None):
+def get_unclaimed_voting_rewards(addresses, blk=None):
     """
     Fetch the target token's balances in the user's unclaimed rewards.
 
     Args:
-        address (str): The user's address.
+        address ([str]): LPs' addresses.
         blk (int, optional): The block number to fetch the data from. Defaults to None/latest block.
 
     Returns:
-        int: The total amount of the target token in the user's unclaimed rewards.
+        [int]: The total amount of the target token in the user's unclaimed rewards.
     """
     t = time.time()
-    amount, exhausted = ve_rewards_helper.fetch(address,  ## User address
-                                                target,   ## Target token
-                                                0,        ## From nft_id
-                                                100,      ## To nft_id (included)
-                                                ## Fetch target token rewards from fee rewards contract & bribe rewards contract
-                                                [contract for contract in pools['fee_voting_reward'].tolist() + pools['bribe_voting_reward'].tolist() if contract != '0x0000000000000000000000000000000000000000'], 
-                                                block_identifier=blk)
-    print('veNFT Rewards bal run time', time.time() - t)
-    return amount
 
-def _get_balance(address, blk):
+    input_args = []
+
+    for address in addresses:
+        input_args.append([ve_rewards_helper.address, ve_rewards_helper.fetch.encode_input(address,  ## User address
+                                                        target,   ## Target token
+                                                        0,        ## From nft_id
+                                                        100,      ## To nft_id (included)
+                                                        ## Fetch target token rewards from fee rewards contract & bribe rewards contract
+                                                        [contract for contract in pools['fee_voting_reward'].tolist() + pools['bribe_voting_reward'].tolist() if contract != '0x0000000000000000000000000000000000000000'])])
+
+    raw_results = multicall.aggregate.call(input_args, block_identifier=blk)[1]
+    return [ve_rewards_helper.fetch.decode_output(res)[0] for res in raw_results]
+    
+def _get_new_balances(addresses, blk):
     """
     Fetch the total balance of the target token in the user's LP positions and unclaimed rewards.
 
     Args:
-        address (str): The user's Ethereum address.
-        blk (int, optional): The block number to fetch the data from. Defaults to None/latest block.
+        address (str): LPs' addresses.
+        blk (int, optional): The block number to fetch the data from. 
 
     Returns:
         int: The total balance of the target token.
     """
-    t = time.time()
+    # t = time.time()
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(get_lp_balance, address, blk), executor.submit(get_unclaimed_voting_rewards, address, blk)]
+        futures = [executor.submit(get_lp_balances, addresses, blk), executor.submit(get_unclaimed_voting_rewards, addresses, blk)]
         results = [future.result() for future in futures]
-    print(results[0] / 1e18, results[1] / 1e18)
-    print('Total run time', time.time() - t)
-    return sum(results)
+    out = [b0+b1 for b0, b1 in zip(results[0], results[1])]
+    return out
 
 def fetch_pools():
     """
     Fetch the pool data and update the global `pools` variable.
     """
     global pools
-    pools = fetch(lp_sugar, target)
+    if chain_id == 8453:
+        pools = fetch(new_sugar, target)
+    else:
+        pools = fetch(lp_sugar, target)
     # pools = pools[pools['fee_voting_reward'] != '0x0000000000000000000000000000000000000000']
 
 def run_scheduler():
@@ -117,59 +133,15 @@ def run_scheduler():
         schedule.run_pending()
         time.sleep(1)
 
-schedule.every(3600).seconds.do(fetch_pools)
-scheduler_thread = threading.Thread(target=run_scheduler)
-scheduler_thread.daemon = True
-scheduler_thread.start()
-fetch_pools()
-
-# Flask API logics
-def is_valid_eth_address(address):
-    """
-    Validate Ethereum addresses.
-
-    Args:
-        address (str): The Ethereum address to validate.
-
-    Returns:
-        bool: True if the address is valid, False otherwise.
-    """
-    if address.startswith('0x') and len(address) == 42:
-        return True
-    return False
-
-@app.route('/getBalance', methods=['GET'])
-def get_balance():
-    """
-    Handle GET requests to the /getBalance endpoint.
-
-    Args:
-        None
-
-    Returns:
-        Response: JSON response containing the address and its balance or an error message.
-    """
-    eth_address = request.args.get('address', None)
-    blk = request.args.get('block', None)
-    blk = int(blk) if blk is not None else None
-    
-    if not eth_address or not is_valid_eth_address(eth_address):
-        return jsonify({"error": "Invalid or missing address"}), 400
-
+def _get_balances(addresses, blk):
     if (chain_id == 10 and blk > 121593546) or (chain_id != 10 and blk > 15998298):
-        balance = _get_balance(eth_address, blk)
+        balances = _get_new_balances(addresses, blk)
     elif chain_id != 10 and target.lower() == '0x04c0599ae5a44757c0af6f9ec3b93da8976c150a'.lower():
-        balance = get_old_balance(eth_address, blk)
+        balances = get_old_balance(addresses, blk)
     elif chain_id == 10 and target.lower() == '0x87eee96d50fb761ad85b1c982d28a042169d61b1'.lower():
-        balance = get_old_balance(eth_address, blk)
-    else:
-        balance = 0 
+        balances = get_old_balance(addresses, blk)
 
-    response_data = {
-        "address": eth_address,
-        "balance": balance
-    }
-    return jsonify(response_data), 200
+    return balances
 
 @app.route('/getPools', methods=['GET'])
 def get_pools():
@@ -192,43 +164,71 @@ def get_users():
     """
     Handle GET requests to the /getUsers endpoint.
 
-    Args:
-        None, optional block
+    This endpoint retrieves a list of users based on the specified blockchain height (block). 
+    If no block is provided, it retrieves users for the current height.
+
+    Query Parameters:
+        block (optional): An integer representing the blockchain height. Defaults to None.
 
     Returns:
-        Response: JSON response containing the users that have deposited into pools containing the target token.
+        Response: JSON response containing a list of users.
     """
-
     blk = request.args.get('block', None)
     blk = int(blk) if blk is not None else None
-
-    if chain_id == 10:
-        query = "select distinct from_address from optimism.transactions where block_number > " + str(first_block) + " and ((input like '0x5a47ddc3%') or (input like '0xb5007d1f%') or (input like '0xb7e0d4c0%')) and ((to_address like '%" + v2_router[2:].lower() + "%') or (to_address like '%" + cl_router[2:].lower() + "%')) and (input like '%" + target[2:].lower() + "%')"
-    else:
-        query = "select distinct from_address from base.transactions where block_number > " + str(first_block) + " and ((input like '0x5a47ddc3%') or (input like '0xb5007d1f%') or (input like '0xb7e0d4c0%')) and ((to_address like '%" + v2_router[2:].lower() + "%') or (to_address like '%" + cl_router[2:].lower() + "%')) and (input like '%" + target[2:].lower() + "%')"
-    
-    if blk is not None:
-        query += " and (block_number < " + str(blk) + ")"
-
-    headers = {"accept": "application/json", "x-api-key": chainbase_key, "content-type": "application/json"}
-
-    response = requests.post("https://api.chainbase.online/v1/dw/query", headers=headers, data=dumps({"query": query}))
-    response = response.json()
-
-    user_data = response['data']['result']
-    users = []
-
-    for entry in user_data:
-        if type(entry) == dict:
-            if 'from_address' in entry:
-                users.append(entry)
-
+    users = usr.get_lps(blk)
     response_data = {
-        "users": users,
+        "users": users
     }
     return jsonify(response_data), 200
 
-app.run(debug=True)
+@app.route('/getBalances', methods=['GET'])
+def get_balances():
+    """
+    Handle GET requests to the /getBalances endpoint.
 
-def main():
-    pass
+    This endpoint retrieves the balances of specified users at a given blockchain height (block). 
+    If no block is provided, it defaults to the current chain height. If no users are specified, 
+    it retrieves balances for all users.
+
+    Args:
+        block (optional): An integer representing the blockchain height. Defaults to the current chain height.
+        users (optional): A comma-separated string of user addresses. If not provided, retrieves balances for all users.
+
+    Returns:
+        Response: JSON response containing user addresses and their effective balances, sorted by balance in descending order.
+    """
+    blk = request.args.get('block', None)
+    users_in = request.args.get('users', None)
+    blk = int(blk) if blk is not None else chain.height
+    t = time.time()
+    if users_in is None:
+        users = usr.get_lps()
+    else:
+        users = users_in.split(',')
+
+    bals = _get_balances(users, blk)
+    
+    print(round(time.time() - t,3))
+    out = []
+    for user, bal in zip(users, bals):
+        if round(bal/1e18,3) > 0:
+            out.append({'address': user, 'effective_balance': round(bal/1e18,3)})
+    out = sorted(out, key=lambda item: item['effective_balance'], reverse=True)
+    return jsonify(out), 200
+
+
+schedule.every(3600).seconds.do(fetch_pools)
+schedule.every(60).seconds.do(usr.refresh_pool_transfers)
+scheduler_thread = threading.Thread(target=run_scheduler)
+scheduler_thread.daemon = True
+scheduler_thread.start()
+
+fetch_pools()
+usr.pools = pools
+usr.refresh_pool_transfers()
+app.run()
+
+
+
+
+

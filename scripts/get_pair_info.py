@@ -18,7 +18,7 @@ def fetch(sugar, target):
                       'is_cl' indicates if the pool is a concentrated liquidity pool (1) or not (0).
     """
     df = pd.DataFrame()
-    columns = ['pool', 'token_pos', 'is_cl', 'fee_voting_reward', 'bribe_voting_reward']
+    columns = ['pool', 'token_pos', 'is_cl', 'fee_voting_reward', 'bribe_voting_reward', 'gauge']
     df = pd.DataFrame(columns=columns)
     df = df.set_index('pool')
     
@@ -27,16 +27,18 @@ def fetch(sugar, target):
     while len(results) == LIMIT:
         results = sugar.all(LIMIT, offset)
         for res in results:
-            pool, pool_type, token0, token1, fee_voting_reward, bribe_voting_reward = res[0], res[4], res[7], res[10], res[16], res[17]
+            pool, pool_type, token0, token1, fee_voting_reward, bribe_voting_reward, gauge = res[0], res[4], res[7], res[10], res[16], res[17], res[13]
             if token0 == target:
                 df.at[pool, 'token_pos'] = 0
                 df.at[pool, 'is_cl'] = 1 if pool_type > 0 else 0
                 df.at[pool, 'fee_voting_reward'] = fee_voting_reward
                 df.at[pool, 'bribe_voting_reward'] = bribe_voting_reward
+                df.at[pool, 'gauge'] = gauge
             elif token1 == target:
                 df.at[pool, 'token_pos'] = 1
                 df.at[pool, 'is_cl'] = 1 if pool_type > 0 else 0
                 df.at[pool, 'fee_voting_reward'] = fee_voting_reward
                 df.at[pool, 'bribe_voting_reward'] = bribe_voting_reward
+                df.at[pool, 'gauge'] = gauge
         offset += LIMIT
     return df

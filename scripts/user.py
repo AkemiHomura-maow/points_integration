@@ -21,7 +21,7 @@ def fetch_v2_pool_transfers(from_blk, end_blk, contracts):
                 pool = res.address
                 from_addr = decode(['address'],res.topics[1])[0]
                 to_addr = decode(['address'],res.topics[2])[0]
-                amt = decode(['uint256'], bytes.fromhex(res.data[2:]))[0]
+                amt = decode(['uint256'], bytes.fromhex(res.data.hex()[2:]))[0]
                 out.append((pool, res.blockNumber, from_addr, to_addr, amt))
             if to_block == end_blk:
                 return out

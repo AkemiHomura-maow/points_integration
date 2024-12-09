@@ -1,7 +1,7 @@
 from brownie import web3
 
 def fetch_logs(event_signature, start_block, end_block, contracts=[]):
-    return web3.eth.getLogs({
+    return web3.eth.get_logs({
         'fromBlock': start_block,
         'toBlock': end_block,
         'topics': [event_signature],

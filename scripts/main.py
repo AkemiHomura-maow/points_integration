@@ -226,7 +226,7 @@ scheduler_thread.start()
 fetch_pools()
 usr.pools = pools
 usr.refresh_pool_transfers()
-app.run()
+app.run(host='0.0.0.0')
 
 
 

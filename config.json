@@ -4,18 +4,16 @@
         "pool_lp_sugar": "0x248F8EFb59cdDF7d94816a891a14A2ac6C1e05AB",
         "ve_rewards_helper": "0x6fF159996Ec4237a9480E1B40857fa0c0F99C80c",
         "target": "0x5a7facb970d094b6c7ff1df0ea68d99e6e73cbff",
-        "v2_router": "0xa062ae8a9c5e11aaa026fc2670b0d65ccc8b2858",
-        "cl_router": "0x416b433906b1b72fa758e166e239c43d68dc6f29",
-        "first_block": 120000000
+        "pool_factory": "0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a",
+        "cl_pool_factory": "0xCc0bDDB707055e04e497aB22a59c2aF4391cd12F"
     },
     "base":{
         "lp_sugar": "0x51f290CCCD6a54Af00b38edDd59212dE068B8A4b",
         "pool_lp_sugar": "0x2c16eA5CF27542afC23dDcD4F54815F406d33209",
         "ve_rewards_helper": "0x90D0368b5E96812568065bfebb43457282877743",
         "target": "0x04c0599ae5a44757c0af6f9ec3b93da8976c150a",
-        "v2_router": "0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43",
-        "cl_router": "0x827922686190790b37229fd06084350e74485b72",
-        "first_block": 13000000
+        "pool_factory": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "cl_pool_factory": "0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A"
     },
     "chainbase_key": "2i5MaedIOk3z7HnQiKqEYrFlVEf"
 }

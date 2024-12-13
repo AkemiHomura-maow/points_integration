@@ -28,11 +28,8 @@ else:
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
 ve_rewards_helper = VotingRewardsHelper.at(data['ve_rewards_helper'])
 target = data['target']
-v2_router = data['v2_router']
-cl_router = data['cl_router']
-first_block = data['first_block']
 
-def get_lp_balances(addresses, blk=None):
+def get_lp_balances(addresses, pools, blk=None):
     """
     Fetch the target token's balances in the user's LP positions.
 
@@ -43,10 +40,10 @@ def get_lp_balances(addresses, blk=None):
     Returns:
         [int]: The total balance of the target token in the user's LP positions.
     """
-    global pools
+
     t = time.time()
     balance = 0
-    
+
     input_args = []
 
     for address in addresses:
@@ -70,7 +67,7 @@ def get_lp_balances(addresses, blk=None):
     return out_balances
 
 
-def get_unclaimed_voting_rewards(addresses, blk=None):
+def get_unclaimed_voting_rewards(addresses, pools, blk=None):
     """
     Fetch the target token's balances in the user's unclaimed rewards.
 
@@ -107,9 +104,12 @@ def _get_new_balances(addresses, blk):
     Returns:
         int: The total balance of the target token.
     """
+    global pools
+    tmp_pools = pools.copy()
+    tmp_pools = tmp_pools[tmp_pools['created_blk'] < blk]
     # t = time.time()
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(get_lp_balances, addresses, blk), executor.submit(get_unclaimed_voting_rewards, addresses, blk)]
+        futures = [executor.submit(get_lp_balances, addresses, tmp_pools, blk), executor.submit(get_unclaimed_voting_rewards, addresses, tmp_pools, blk)]
         results = [future.result() for future in futures]
     out = [b0+b1 for b0, b1 in zip(results[0], results[1])]
     return out
@@ -226,7 +226,7 @@ scheduler_thread.start()
 fetch_pools()
 usr.pools = pools
 usr.refresh_pool_transfers()
-app.run(host='0.0.0.0')
+app.run()
 
 
 

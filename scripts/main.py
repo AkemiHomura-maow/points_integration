@@ -19,9 +19,11 @@ chain_id = chain.id
 if chain_id == 10:
     data = data['op'] 
     lp_sugar = LpSugar.at(data['lp_sugar'])
+    port = 9000
 else:
     data = data['base']
     lp_sugar = LpSugar.at(data['lp_sugar'])
+    port = 9001
 
 multicall = interface.IMulticall3('0xcA11bde05977b3631167028862bE2a173976CA11')    
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
@@ -224,7 +226,7 @@ scheduler_thread.start()
 fetch_pools()
 usr.pools = pools
 usr.refresh_pool_transfers()
-app.run()
+app.run(host='0.0.0.0', port=port)
 
 
 

@@ -21,10 +21,9 @@ if chain_id == 10:
     lp_sugar = LpSugar.at(data['lp_sugar'])
 else:
     data = data['base']
-    lp_sugar = LpSugar.at('0x066D31221152f1f483DA474d1Ce47a4F50433e22')
-    new_sugar = LpSugar.at(data['lp_sugar'])
-    multicall = interface.IMulticall3('0xcA11bde05977b3631167028862bE2a173976CA11')
-    
+    lp_sugar = LpSugar.at(data['lp_sugar'])
+
+multicall = interface.IMulticall3('0xcA11bde05977b3631167028862bE2a173976CA11')    
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
 ve_rewards_helper = VotingRewardsHelper.at(data['ve_rewards_helper'])
 target = data['target']
@@ -93,7 +92,7 @@ def get_unclaimed_voting_rewards(addresses, pools, blk=None):
     raw_results = multicall.aggregate.call(input_args, block_identifier=blk)[1]
     return [ve_rewards_helper.fetch.decode_output(res)[0] for res in raw_results]
     
-def _get_new_balances(addresses, blk):
+def _get_new_balances(pools, addresses, blk):
     """
     Fetch the total balance of the target token in the user's LP positions and unclaimed rewards.
 
@@ -104,12 +103,10 @@ def _get_new_balances(addresses, blk):
     Returns:
         int: The total balance of the target token.
     """
-    global pools
-    tmp_pools = pools.copy()
-    tmp_pools = tmp_pools[tmp_pools['created_blk'] < blk]
+
     # t = time.time()
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(get_lp_balances, addresses, tmp_pools, blk), executor.submit(get_unclaimed_voting_rewards, addresses, tmp_pools, blk)]
+        futures = [executor.submit(get_lp_balances, addresses, pools, blk), executor.submit(get_unclaimed_voting_rewards, addresses, pools, blk)]
         results = [future.result() for future in futures]
     out = [b0+b1 for b0, b1 in zip(results[0], results[1])]
     return out
@@ -119,10 +116,7 @@ def fetch_pools():
     Fetch the pool data and update the global `pools` variable.
     """
     global pools
-    if chain_id == 8453:
-        pools = fetch(new_sugar, target)
-    else:
-        pools = fetch(lp_sugar, target)
+    pools = fetch(lp_sugar, target)
     # pools = pools[pools['fee_voting_reward'] != '0x0000000000000000000000000000000000000000']
 
 def run_scheduler():
@@ -134,12 +128,16 @@ def run_scheduler():
         time.sleep(1)
 
 def _get_balances(addresses, blk):
+    global pools
+    tmp_pools = pools.copy()
+    tmp_pools = tmp_pools[tmp_pools['created_blk'] < blk]
+
     if (chain_id == 10 and blk > 121593546) or (chain_id != 10 and blk > 15998298):
-        balances = _get_new_balances(addresses, blk)
+        balances = _get_new_balances(tmp_pools, addresses, blk)
     elif chain_id != 10 and target.lower() == '0x04c0599ae5a44757c0af6f9ec3b93da8976c150a'.lower():
-        balances = get_old_balance(addresses, blk)
-    elif chain_id == 10 and target.lower() == '0x87eee96d50fb761ad85b1c982d28a042169d61b1'.lower():
-        balances = get_old_balance(addresses, blk)
+        balances = get_old_balance(tmp_pools.index.tolist(), addresses, blk)
+    elif chain_id == 10 and target.lower() == '0x5a7facb970d094b6c7ff1df0ea68d99e6e73cbff'.lower():
+        balances = get_old_balance(tmp_pools.index.tolist(), addresses, blk)
 
     return balances
 
@@ -202,7 +200,7 @@ def get_balances():
     blk = int(blk) if blk is not None else chain.height
     t = time.time()
     if users_in is None:
-        users = usr.get_lps()
+        users = usr.get_lps(blk)
     else:
         users = users_in.split(',')
 

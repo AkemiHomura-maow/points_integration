@@ -54,12 +54,12 @@ def fetch(sugar, target):
         offset += LIMIT
 
     non_cl_pools = df[df['is_cl'] == 0].index.to_list()
-    results = pool_fac.events.PoolCreated.createFilter(fromBlock=0, argument_filters={'pool': non_cl_pools}).get_all_entries()
+    results = pool_fac.events.PoolCreated.create_filter(fromBlock=0, argument_filters={'pool': non_cl_pools}).get_all_entries()
     for res in results:
         df.at[res.args.pool, 'created_blk'] = res.blockNumber
 
     cl_pools = df[df['is_cl'] == 1].index.to_list()
-    results = cl_fac.events.PoolCreated.createFilter(fromBlock=0, argument_filters={'pool': cl_pools}).get_all_entries()
+    results = cl_fac.events.PoolCreated.create_filter(fromBlock=0, argument_filters={'pool': cl_pools}).get_all_entries()
     for res in results:
         df.at[res.args.pool, 'created_blk'] = res.blockNumber
 

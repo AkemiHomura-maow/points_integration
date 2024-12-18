@@ -10,6 +10,7 @@ else:
     data = data['base']
 pool_fac = interface.IPoolFactory(data['pool_factory'])
 cl_fac = interface.ICLFactory(data['cl_pool_factory'])
+voter = interface.IVoter(data['voter'])
 
 LIMIT = 500
 
@@ -29,7 +30,7 @@ def fetch(sugar, target):
                       'is_cl' indicates if the pool is a concentrated liquidity pool (1) or not (0).
     """
     df = pd.DataFrame()
-    columns = ['pool', 'token_pos', 'is_cl', 'fee_voting_reward', 'bribe_voting_reward', 'gauge', 'created_blk']
+    columns = ['pool', 'token_pos', 'is_cl', 'fee_voting_reward', 'bribe_voting_reward', 'gauge', 'pool_created_blk', 'gauge_created_blk']
     df = pd.DataFrame(columns=columns)
     df = df.set_index('pool')
     
@@ -56,11 +57,15 @@ def fetch(sugar, target):
     non_cl_pools = df[df['is_cl'] == 0].index.to_list()
     results = pool_fac.events.PoolCreated.create_filter(fromBlock=0, argument_filters={'pool': non_cl_pools}).get_all_entries()
     for res in results:
-        df.at[res.args.pool, 'created_blk'] = res.blockNumber
+        df.at[res.args.pool, 'pool_created_blk'] = res.blockNumber
 
     cl_pools = df[df['is_cl'] == 1].index.to_list()
     results = cl_fac.events.PoolCreated.create_filter(fromBlock=0, argument_filters={'pool': cl_pools}).get_all_entries()
     for res in results:
-        df.at[res.args.pool, 'created_blk'] = res.blockNumber
+        df.at[res.args.pool, 'pool_created_blk'] = res.blockNumber
+
+    results = voter.events.GaugeCreated.create_filter(fromBlock=0, argument_filters={'pool': df.index.tolist()}).get_all_entries()
+    for res in results:
+        df.at[res.args.pool, 'gauge_created_blk'] = res.blockNumber
 
     return df

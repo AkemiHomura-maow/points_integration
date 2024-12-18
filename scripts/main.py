@@ -108,7 +108,7 @@ def _get_new_balances(pools, addresses, blk):
 
     # t = time.time()
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(get_lp_balances, addresses, pools, blk), executor.submit(get_unclaimed_voting_rewards, addresses, pools, blk)]
+        futures = [executor.submit(get_lp_balances, addresses, pools, blk), executor.submit(get_unclaimed_voting_rewards, addresses, pools[pools['gauge_created_blk'] < blk], blk)]
         results = [future.result() for future in futures]
     out = [b0+b1 for b0, b1 in zip(results[0], results[1])]
     return out
@@ -132,7 +132,7 @@ def run_scheduler():
 def _get_balances(addresses, blk):
     global pools
     tmp_pools = pools.copy()
-    tmp_pools = tmp_pools[tmp_pools['created_blk'] < blk]
+    tmp_pools = tmp_pools[tmp_pools['pool_created_blk'] < blk]
 
     if (chain_id == 10 and blk > 121593546) or (chain_id != 10 and blk > 15998298):
         balances = _get_new_balances(tmp_pools, addresses, blk)

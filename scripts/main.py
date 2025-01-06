@@ -6,8 +6,13 @@ import time
 import threading
 import schedule
 from flask import Flask, request, jsonify
-from scripts.get_old_balance import get_old_balance
+from scripts.get_old_balance import get_old_balance, set_vars
 import scripts.user as usr
+from scripts.v3_user import v3_users_at_ts
+from scripts.time_lib import blk_to_ts
+import sys
+
+args = sys.argv
 
 app = Flask(__name__)
 
@@ -28,7 +33,7 @@ else:
 multicall = interface.IMulticall3('0xcA11bde05977b3631167028862bE2a173976CA11')    
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
 ve_rewards_helper = VotingRewardsHelper.at(data['ve_rewards_helper'])
-target = data['target']
+target = args[3]
 
 def get_lp_balances(addresses, pools, blk=None):
     """
@@ -119,6 +124,7 @@ def fetch_pools():
     """
     global pools
     pools = fetch(lp_sugar, target)
+    set_vars(pools)
     # pools = pools[pools['fee_voting_reward'] != '0x0000000000000000000000000000000000000000']
 
 def run_scheduler():
@@ -136,9 +142,7 @@ def _get_balances(addresses, blk):
 
     if (chain_id == 10 and blk > 121593546) or (chain_id != 10 and blk > 15998298):
         balances = _get_new_balances(tmp_pools, addresses, blk)
-    elif chain_id != 10 and target.lower() == '0x04c0599ae5a44757c0af6f9ec3b93da8976c150a'.lower():
-        balances = get_old_balance(tmp_pools.index.tolist(), addresses, blk)
-    elif chain_id == 10 and target.lower() == '0x5a7facb970d094b6c7ff1df0ea68d99e6e73cbff'.lower():
+    else:
         balances = get_old_balance(tmp_pools.index.tolist(), addresses, blk)
 
     return balances
@@ -175,7 +179,7 @@ def get_users():
     """
     blk = request.args.get('block', None)
     blk = int(blk) if blk is not None else None
-    users = usr.get_lps(blk)
+    users = usr.get_v2_lps(blk)
     response_data = {
         "users": users
     }
@@ -202,7 +206,9 @@ def get_balances():
     blk = int(blk) if blk is not None else chain.height
     t = time.time()
     if users_in is None:
-        users = usr.get_lps(blk)
+        v2_users = usr.get_v2_lps(blk)
+        v3_users = v3_users_at_ts(pools[pools['is_cl'] == True].index.to_list() , blk_to_ts(chain_id, blk))
+        users = list(set(v2_users + v3_users))
     else:
         users = users_in.split(',')
 

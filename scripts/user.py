@@ -40,7 +40,7 @@ def refresh_pool_transfers():
     transfers.extend(fetch_v2_pool_transfers(from_blk, to_blk, pools.index.to_list()))
     last_fetched_blk = to_blk
 
-def get_lps(snapshot_blk=None):
+def get_v2_lps(snapshot_blk=None):
     balances = defaultdict(Counter)
     for transfer in transfers:
         pool, blk, from_addr, to_addr, amt = transfer

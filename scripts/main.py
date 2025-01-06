@@ -24,16 +24,15 @@ chain_id = chain.id
 if chain_id == 10:
     data = data['op'] 
     lp_sugar = LpSugar.at(data['lp_sugar'])
-    port = 9000
 else:
     data = data['base']
     lp_sugar = LpSugar.at(data['lp_sugar'])
-    port = 9001
 
 multicall = interface.IMulticall3('0xcA11bde05977b3631167028862bE2a173976CA11')    
 pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
 ve_rewards_helper = VotingRewardsHelper.at(data['ve_rewards_helper'])
 target = args[3]
+port = args[4]
 
 def get_lp_balances(addresses, pools, blk=None):
     """

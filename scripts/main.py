@@ -33,6 +33,7 @@ pool_lp_sugar = PoolLpSugar.at(data['pool_lp_sugar'])
 ve_rewards_helper = VotingRewardsHelper.at(data['ve_rewards_helper'])
 target = args[3]
 port = args[4]
+scaler = 10**interface.ERC20(target).decimals()
 
 def get_lp_balances(addresses, pools, blk=None):
     """
@@ -177,8 +178,10 @@ def get_users():
         Response: JSON response containing a list of users.
     """
     blk = request.args.get('block', None)
-    blk = int(blk) if blk is not None else None
-    users = usr.get_v2_lps(blk)
+    blk = int(blk) if blk is not None else chain.height
+    v2_users = usr.get_v2_lps(blk)
+    v3_users = v3_users_at_ts(pools[pools['is_cl'] == True].index.to_list() , blk_to_ts(chain_id, blk))
+    users = list(set(v2_users + v3_users))
     response_data = {
         "users": users
     }
@@ -216,8 +219,8 @@ def get_balances():
     print(round(time.time() - t,3))
     out = []
     for user, bal in zip(users, bals):
-        if round(bal/1e18,3) > 0:
-            out.append({'address': user, 'effective_balance': round(bal/1e18,3)})
+        if round(bal/scaler,5) > 0:
+            out.append({'address': user, 'effective_balance': round(bal/scaler,5)})
     out = sorted(out, key=lambda item: item['effective_balance'], reverse=True)
     return jsonify(out), 200
 

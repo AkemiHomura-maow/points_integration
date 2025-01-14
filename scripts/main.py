@@ -181,7 +181,7 @@ def get_users():
     blk = int(blk) if blk is not None else chain.height
     v2_users = usr.get_v2_lps(blk)
     v3_users = v3_users_at_ts(pools[pools['is_cl'] == True].index.to_list() , blk_to_ts(chain_id, blk))
-    users = list(set(v2_users + v3_users))
+    users = list(set([u.lower() for u in v2_users + v3_users]))
     response_data = {
         "users": users
     }
@@ -210,7 +210,7 @@ def get_balances():
     if users_in is None:
         v2_users = usr.get_v2_lps(blk)
         v3_users = v3_users_at_ts(pools[pools['is_cl'] == True].index.to_list() , blk_to_ts(chain_id, blk))
-        users = list(set(v2_users + v3_users))
+        users = list(set([u.lower() for u in v2_users + v3_users]))
     else:
         users = users_in.split(',')
 
@@ -219,9 +219,10 @@ def get_balances():
     print(round(time.time() - t,3))
     out = []
     for user, bal in zip(users, bals):
-        if round(bal/scaler,5) > 0:
-            out.append({'address': user, 'effective_balance': round(bal/scaler,5)})
+        if bal > 0:
+            out.append({'address': user, 'effective_balance': bal/scaler})
     out = sorted(out, key=lambda item: item['effective_balance'], reverse=True)
+    print('Sum:', sum(bals)/scaler)
     return jsonify(out), 200
 
 
